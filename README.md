@@ -201,20 +201,3 @@ See **DEPLOY.md** for the full step-by-step guide covering:
 
 ---
 
-## Development notes
-
-**Auto-commit:** Pending measurements auto-commit after 24 hours. In production this is handled by checking timestamps on each request. For a scheduled job approach, add a cron task calling the `_auto_commit()` function in `measurements.py`.
-
-**Flag thresholds:** Each well stores its own `flag_sigma` and `flag_trend_dev` values. Defaults are ±2σ and 5 ft trend deviation. Configurable per well via the wells API.
-
-**20-day edit rule:** Operators cannot edit or cancel measurements older than 20 days. Super and Admin roles bypass this restriction.
-
-**WR corrections:** The original measurement record is never modified. Corrections are stored in a separate `wr_corrections` table linked by `measurement_id`. The frontend shows both records simultaneously with differences highlighted.
-
-**Frontend:** `static/index.html` is a single self-contained file. All CSS, JavaScript, and HTML in one file. No build step, no npm, no node_modules. To update the frontend, edit the file directly and restart the server.
-
----
-
-## License
-
-Internal use only — Elsinore Valley Municipal Water District.
