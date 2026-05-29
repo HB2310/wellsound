@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WellSound — Groundwater Monitoring</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,sans-serif;background:#f1f5f9;min-height:100vh;font-size:14px;color:#1e293b}
+
+    /* LOGIN SCREEN */
+    .login-overlay{position:fixed;inset:0;background:#0f172a;display:flex;align-items:center;justify-content:center;z-index:1000}
+    .login-card{background:#fff;border-radius:14px;padding:36px 40px;width:380px;box-shadow:0 25px 50px rgba(0,0,0,0.4)}
+    .login-brand{font-size:24px;font-weight:800;color:#0f172a;letter-spacing:-0.5px;margin-bottom:4px}
+    .login-sub{font-size:13px;color:#64748b;margin-bottom:26px}
+    .login-field{margin-bottom:14px}
+    .login-field label{display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px}
+    .login-field input,.login-field select{width:100%;font-size:14px;padding:9px 11px;border-radius:7px;border:1px solid #e2e8f0;background:#f8fafc;outline:none}
+    .login-field input:focus,.login-field select:focus{border-color:#93c5fd;background:#fff}
+    .login-btn{width:100%;padding:11px;font-size:14px;font-weight:700;background:#2563eb;color:#fff;border:none;border-radius:7px;cursor:pointer;margin-top:8px}
+    .login-btn:hover{background:#1d4ed8}
+    .login-hint{font-size:11px;color:#94a3b8;margin-top:14px;text-align:center;line-height:1.6}
+
+    /* NAVBAR */
+    .navbar{background:#0f172a;padding:0 24px;display:flex;align-items:center;height:48px;gap:0}
+    .navbar-brand{color:#fff;font-size:17px;font-weight:700;letter-spacing:-0.3px;margin-right:28px}
+    .nav-tab{color:#94a3b8;font-size:13px;padding:0 16px;height:48px;display:flex;align-items:center;cursor:pointer;border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none}
+    .nav-tab:hover{color:#e2e8f0}
+    .nav-tab.active{color:#fff;border-bottom:2px solid #3b82f6}
+    .nav-right{margin-left:auto;display:flex;align-items:center;gap:14px;color:#cbd5e1;font-size:12px}
+    .nav-user{display:flex;align-items:center;gap:6px}
+    .nav-user-dot{width:7px;height:7px;border-radius:50%;background:#22c55e}
+    .nav-logout{color:#94a3b8;background:none;border:none;font-size:12px;cursor:pointer;padding:4px 8px;border-radius:4px}
+    .nav-logout:hover{color:#fff;background:rgba(255,255,255,0.1)}
+
+    .app-wrap{display:flex;height:calc(100vh - 48px)}
+
+    /* SIDEBAR — more prominent selection */
+    .sidebar{width:205px;min-width:205px;background:#f8fafc;border-right:1px solid #e2e8f0;display:flex;flex-direction:column}
+    .sb-head{padding:10px 12px;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center}
+    .sb-count{background:#e2e8f0;border-radius:10px;padding:1px 6px;font-size:11px;color:#475569}
+    .sb-search{padding:7px 9px;border-bottom:1px solid #e2e8f0}
+    .sb-search input{width:100%;font-size:12px;padding:5px 8px;border-radius:6px;border:1px solid #e2e8f0;background:#fff;outline:none}
+    .sb-list{flex:1;overflow-y:auto}
+    .well-btn{width:100%;padding:11px 12px;background:transparent;border:none;border-bottom:1px solid #e2e8f0;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:3px;transition:all 0.12s;position:relative}
+    .well-btn:hover{background:#eef2f7}
+    .well-btn.active{background:#dbeafe;border-left:4px solid #2563eb;padding-left:8px;box-shadow:inset 0 0 0 1px #93c5fd}
+    .well-btn.active .wname{color:#1d4ed8;font-weight:700}
+    .well-btn.active .wmeta{color:#1e40af}
+    .wname{font-size:13px;font-weight:600;color:#1e293b}
+    .wmeta{font-size:11px;color:#64748b;display:flex;align-items:center;gap:4px}
+    .dot{width:6px;height:6px;border-radius:50%;display:inline-block;flex-shrink:0}
+
+    /* DATA PAGE */
+    .page{display:flex;flex:1;overflow:hidden}
+    .page.hidden{display:none}
+
+    .form-col{width:260px;min-width:260px;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;background:#fff;overflow-y:auto}
+    .form-topbar{padding:10px 14px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between}
+    .form-topbar-label{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.07em}
+    .badge-status{font-size:11px;padding:3px 9px;border-radius:12px;font-weight:500}
+    .form-inner{padding:14px;display:flex;flex-direction:column;gap:11px;flex:1}
+    .form-inner label{font-size:12px;color:#64748b;display:block;margin-bottom:3px;font-weight:500}
+    .form-inner input,.form-inner select,.form-inner textarea{width:100%;font-size:13px;padding:7px 9px;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;outline:none}
+    .form-inner input:focus,.form-inner select:focus,.form-inner textarea:focus{border-color:#93c5fd;background:#fff}
+    .form-inner input:read-only{background:#f1f5f9;color:#475569}
+    .form-inner textarea{resize:none;height:56px}
+    .hint-txt{font-size:11px;color:#94a3b8;margin-top:2px;display:block}
+    .warn-box{font-size:12px;color:#92400e;background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:8px 10px;margin-top:4px;display:flex;flex-direction:column;gap:6px}
+    .ack-row{display:flex;align-items:center;gap:6px;font-size:12px;color:#78350f}
+    .ack-row input[type=checkbox]{width:auto;margin:0}
+    .flag-box{font-size:12px;color:#7c2d12;background:#fed7aa;border:1px solid #fb923c;border-radius:6px;padding:7px 9px;margin-top:4px}
+    .err-box{font-size:12px;color:#991b1b;background:#fee2e2;border-radius:6px;padding:7px 9px}
+    .sub-btn{width:100%;padding:9px;font-size:13px;font-weight:700;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer}
+    .sub-btn:hover{background:#1d4ed8}
+    .sub-btn:disabled{background:#94a3b8;cursor:not-allowed}
+    .submitted-box{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px;font-size:12px;display:flex;flex-direction:column;gap:7px}
+    .submitted-box.flagged{background:#fff7ed;border-color:#fdba74}
+    .srow{display:flex;justify-content:space-between;gap:8px}
+    .slabel{color:#64748b}
+    .sval{color:#1e293b;font-weight:600;text-align:right}
+    .reset-btn{font-size:12px;color:#2563eb;background:none;border:none;cursor:pointer;text-align:left;padding:0}
+    .reset-btn:hover{text-decoration:underline}
+    .date-time-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .pending-banner{background:#fffbeb;border:1px solid #fbbf24;border-radius:6px;padding:8px 10px;font-size:11px;color:#78350f;line-height:1.4}
+
+    /* CHARTS COLUMN */
+    .charts-col{flex:1;display:flex;flex-direction:column;overflow:hidden;background:#fff}
+    .charts-topbar{padding:12px 18px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+    .well-big-title{font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.4px}
+    .well-loc-sub{font-size:13px;color:#64748b;margin-top:1px}
+    .charts-area{flex:1;padding:14px;overflow-y:auto;display:flex;flex-direction:column;gap:13px;min-width:0}
+    .metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px}
+    .mc{background:#f8fafc;border-radius:8px;padding:10px 12px}
+    .mc-label{font-size:11px;color:#64748b;margin-bottom:3px}
+    .mc-val{font-size:18px;font-weight:700;color:#1e293b;line-height:1.15}
+    .mc-sub{font-size:11px;color:#94a3b8;margin-top:2px}
+    .mc-date{font-size:11px;color:#2563eb;font-weight:600;margin-top:1px}
+    .yr-select{font-size:12px;padding:3px 6px;border-radius:5px;border:1px solid #e2e8f0;background:#fff;outline:none;width:100%;margin-top:5px}
+    .chart-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px}
+    .cleg{display:flex;gap:14px;margin-bottom:7px;font-size:11px;color:#64748b;flex-wrap:wrap;align-items:center}
+    .ct{font-size:12px;font-weight:600;color:#475569;margin-right:10px}
+    .li{display:flex;align-items:center;gap:4px}
+    .lsq{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+    .placeholder{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#94a3b8;font-size:13px;gap:10px;text-align:center;padding:40px}
+
+    /* REFERENCE PAGE */
+    .ref-page{display:none;flex:1;overflow-y:auto;padding:28px 32px;flex-direction:column}
+    .ref-page.visible{display:flex}
+    .ref-header{margin-bottom:22px}
+    .ref-header h2{font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.4px;margin-bottom:4px}
+    .ref-header p{font-size:13px;color:#64748b}
+    .ref-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:24px;max-width:680px;display:flex;flex-direction:column;gap:18px}
+    .ref-card h3{font-size:14px;font-weight:700;color:#1e293b;padding-bottom:12px;border-bottom:1px solid #f1f5f9}
+    .ref-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .ref-field{display:flex;flex-direction:column;gap:5px}
+    .ref-field label{font-size:13px;font-weight:600;color:#374151}
+    .ref-field input,.ref-field select{font-size:14px;padding:9px 11px;border-radius:7px;border:1px solid #e2e8f0;background:#f8fafc;outline:none;width:100%}
+    .ref-field input:focus,.ref-field select:focus{border-color:#93c5fd;background:#fff}
+    .ref-field .field-hint{font-size:11px;color:#94a3b8;margin-top:2px}
+    .ref-submit{display:flex;align-items:center;gap:12px;padding-top:4px;flex-wrap:wrap}
+    .ref-sub-btn{padding:10px 24px;font-size:14px;font-weight:700;background:#2563eb;color:#fff;border:none;border-radius:7px;cursor:pointer}
+    .ref-sub-btn:hover{background:#1d4ed8}
+    .ref-success{display:none;font-size:13px;color:#15803d;background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:8px 12px}
+    .ref-err{display:none;font-size:13px;color:#991b1b;background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;padding:8px 12px}
+
+    /* HISTORY PAGE */
+    .hist-page{display:none;flex:1;overflow-y:auto;padding:24px 28px;flex-direction:column}
+    .hist-page.visible{display:flex}
+    .hist-header{margin-bottom:18px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:14px}
+    .hist-title h2{font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.4px;margin-bottom:4px}
+    .hist-title p{font-size:13px;color:#64748b}
+    .hist-controls{display:flex;gap:8px;align-items:center}
+    .hist-controls select,.hist-controls input{font-size:13px;padding:7px 10px;border-radius:6px;border:1px solid #e2e8f0;background:#fff;outline:none}
+    .csv-btn{padding:8px 14px;font-size:13px;font-weight:600;background:#0f766e;color:#fff;border:none;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:6px}
+    .csv-btn:hover{background:#115e59}
+    .hist-table{background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden}
+    .hist-row{display:grid;grid-template-columns:120px 90px 100px 130px 90px 90px 100px 90px;gap:10px;padding:10px 14px;font-size:12px;align-items:center;border-bottom:1px solid #f1f5f9;cursor:pointer;transition:background 0.1s}
+    .hist-row:last-child{border-bottom:none}
+    .hist-row:hover{background:#f8fafc}
+    .hist-row.header{background:#f8fafc;font-weight:600;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;cursor:default}
+    .hist-row.header:hover{background:#f8fafc}
+    .hist-row.flagged{background:#fff7ed}
+    .hist-row.flagged:hover{background:#ffedd5}
+    .hist-row.pending{background:#fffbeb;font-style:italic}
+    .hist-row.pending:hover{background:#fef3c7}
+    .pill{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600;display:inline-block}
+    .pill-ok{background:#dcfce7;color:#15803d}
+    .pill-flag{background:#fed7aa;color:#9a3412}
+    .pill-pending{background:#fef3c7;color:#92400e}
+    .pill-wr{background:#ede9fe;color:#5b21b6}
+    .hist-row.wr-corrected{background:#f5f3ff}
+    .hist-row.wr-corrected:hover{background:#ede9fe}
+    .wr-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:#5b21b6;background:#ede9fe;padding:2px 7px;border-radius:10px}
+    .modal-section-title{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;padding:10px 0 2px;margin-top:6px}
+    .modal-section-title.wr{color:#5b21b6}
+    .wr-correction-form{background:#f5f3ff;border:1px solid #c4b5fd;border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px;margin-top:4px}
+    .wr-correction-form label{font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:3px}
+    .wr-correction-form input,.wr-correction-form select,.wr-correction-form textarea{width:100%;font-size:13px;padding:6px 9px;border-radius:6px;border:1px solid #c4b5fd;background:#fff;outline:none}
+    .wr-correction-form textarea{resize:none;height:52px}
+    .wr-sub-btn{padding:8px 16px;font-size:13px;font-weight:700;background:#7c3aed;color:#fff;border:none;border-radius:6px;cursor:pointer}
+    .wr-sub-btn:hover{background:#6d28d9}
+    .diff-hl{background:#fef9c3;border-radius:3px;padding:1px 3px;font-style:italic}
+
+    /* MODAL */
+    .modal-bg{position:fixed;inset:0;background:rgba(15,23,42,0.55);display:none;align-items:center;justify-content:center;z-index:500;padding:20px}
+    .modal-bg.visible{display:flex}
+    .modal{background:#fff;border-radius:14px;padding:26px 28px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 25px 50px rgba(0,0,0,0.3)}
+    .modal-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px}
+    .modal-head h2{font-size:18px;font-weight:700;color:#0f172a;letter-spacing:-0.3px}
+    .modal-head .sub{font-size:12px;color:#64748b;margin-top:3px}
+    .modal-close{background:none;border:none;font-size:22px;color:#94a3b8;cursor:pointer;line-height:1;padding:0 4px}
+    .modal-close:hover{color:#1e293b}
+    .modal-body{display:flex;flex-direction:column;gap:8px;font-size:13px}
+    .modal-row{display:grid;grid-template-columns:140px 1fr;gap:14px;padding:9px 0;border-bottom:1px solid #f1f5f9}
+    .modal-row:last-child{border-bottom:none}
+    .modal-row .l{color:#64748b;font-weight:500}
+    .modal-row .v{color:#1e293b;font-weight:600}
+    .modal-actions{display:flex;gap:8px;margin-top:20px;padding-top:16px;border-top:1px solid #f1f5f9;flex-wrap:wrap}
+    .modal-btn{padding:8px 16px;font-size:13px;font-weight:600;border:none;border-radius:6px;cursor:pointer}
+    .modal-btn.danger{background:#dc2626;color:#fff}
+    .modal-btn.danger:hover{background:#b91c1c}
+    .modal-btn.secondary{background:#e2e8f0;color:#475569}
+    .modal-btn.secondary:hover{background:#cbd5e1}
+
+    .preview-marker-legend{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#7c2d12;background:#fed7aa;padding:2px 8px;border-radius:10px}
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-overlay" id="login-overlay">
+  <div class="login-card">
+    <div class="login-brand">WellSound</div>
+    <div class="login-sub">Sign in to continue</div>
+    <div class="login-field">
+      <label>Username</label>
+      <select id="login-user">
+        <option value="">— select user —</option>
+        <option value="jsmith">Joe Smith (Operator)</option>
+        <option value="mwilson">Mike Wilson (Operator)</option>
+        <option value="pjohnson">Paul Johnson (Operator)</option>
+        <option value="lbrown">Lisa Brown (Super)</option>
+        <option value="tdavis">Tom Davis (Admin)</option>
+      </select>
+    </div>
+    <div class="login-field">
+      <label>Password</label>
+      <input type="password" id="login-pw" value="demo" placeholder="any password works in demo">
+    </div>
+    <button class="login-btn" onclick="doLogin()">Sign in</button>
+    <div class="login-hint">
+      Demo prototype — pick any user.<br>Real backend auth will replace this.
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="main-app" style="display:none">
+  <nav class="navbar">
+    <span class="navbar-brand">WellSound</span>
+    <button class="nav-tab active" id="tab-data" onclick="switchTab('data')">Data Entry</button>
+    <button class="nav-tab" id="tab-ref" onclick="switchTab('ref')">Reference Info</button>
+    <button class="nav-tab" id="tab-hist" onclick="switchTab('hist')">Measurement History</button>
+    <button class="nav-tab" id="tab-refhist" onclick="switchTab('refhist')">Reference History</button>
+    <div class="nav-right">
+      <span class="nav-user">
+        <span class="nav-user-dot"></span>
+        <span id="nav-username">—</span>
+      </span>
+      <button class="nav-logout" onclick="doLogout()">Sign out</button>
+    </div>
+  </nav>
+
+  <div class="app-wrap">
+    <div class="sidebar">
+      <div class="sb-head">Wells <span class="sb-count" id="wcount">5</span></div>
+      <div class="sb-search"><input id="wsearch" placeholder="Search wells..." oninput="filterWells()"></div>
+      <div class="sb-list" id="well-list"></div>
+    </div>
+
+    <!-- DATA PAGE -->
+    <div class="page" id="data-page">
+      <div class="form-col">
+        <div class="form-topbar">
+          <span class="form-topbar-label">New Measurement</span>
+          <span class="badge-status" id="wbadge" style="display:none"></span>
+        </div>
+        <div class="form-inner" id="form-inner">
+          <div class="placeholder" style="padding:20px;text-align:center;color:#94a3b8;font-size:12px">
+            Select a well to begin data entry.
+          </div>
+        </div>
+      </div>
+      <div class="charts-col">
+        <div class="charts-topbar">
+          <div>
+            <div class="well-big-title" id="well-big-title">Select a well</div>
+            <div class="well-loc-sub" id="well-loc-sub"></div>
+          </div>
+        </div>
+        <div class="charts-area" id="charts-area">
+          <div class="placeholder">
+            <svg width="36" height="36" fill="none" stroke="#cbd5e1" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Select a well from the sidebar to view charts.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REFERENCE PAGE -->
+    <div class="ref-page" id="ref-page">
+      <div class="ref-header">
+        <h2 id="ref-title">Reference Information</h2>
+        <p id="ref-sub">Select a well from the sidebar to view or update its reference data.</p>
+      </div>
+      <div id="ref-body"></div>
+    </div>
+
+    <!-- MEASUREMENT HISTORY -->
+    <div class="hist-page" id="hist-page">
+      <div class="hist-header">
+        <div class="hist-title">
+          <h2>Measurement History</h2>
+          <p id="hist-sub">All submitted measurements. Click any row for full details. Submissions auto-commit after 24 hours.</p>
+        </div>
+        <div class="hist-controls">
+          <select id="hist-filter-well" onchange="renderHistory()">
+            <option value="">All wells</option>
+          </select>
+          <select id="hist-filter-status" onchange="renderHistory()">
+            <option value="">All status</option>
+            <option value="pending">Pending</option>
+            <option value="committed">Committed</option>
+            <option value="flagged">Flagged</option>
+          </select>
+          <button class="csv-btn" onclick="exportMeasurementsCSV()">⬇ Export CSV</button>
+        </div>
+      </div>
+      <div class="hist-table" id="hist-table"></div>
+    </div>
+
+    <!-- REFERENCE HISTORY -->
+    <div class="hist-page" id="refhist-page">
+      <div class="hist-header">
+        <div class="hist-title">
+          <h2>Reference Information History</h2>
+          <p>All saved reference data changes across wells. Click any row for details.</p>
+        </div>
+        <div class="hist-controls">
+          <select id="refhist-filter-well" onchange="renderRefHistory()">
+            <option value="">All wells</option>
+          </select>
+          <button class="csv-btn" onclick="exportRefHistoryCSV()">⬇ Export CSV</button>
+        </div>
+      </div>
+      <div class="hist-table" id="refhist-table"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL for entry details -->
+<div class="modal-bg" id="modal-bg" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-head">
+      <div>
+        <h2 id="modal-title">Entry details</h2>
+        <div class="sub" id="modal-sub"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-actions" id="modal-actions"></div>
+  </div>
+</div>
+
+<script>
+
+// ============================================================
+// WellSound — API-wired frontend
+// ============================================================
+
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'include' };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(path, opts);
+  if (res.status === 401) { window.location.href = '/auth/login'; return null; }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || 'Request failed');
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+const GET    = p    => api('GET',    p);
+const POST   = (p,b)=> api('POST',   p, b);
+const PUT    = (p,b)=> api('PUT',    p, b);
+const DEL    = p    => api('DELETE', p);
+
+let currentUser = null, WELLS = [], MEASUREMENTS = {}, activeId = null;
+let charts = {}, currentTab = 'data', previewValue = null, previewActivity = 'Static';
+const METHODS = ['Air','Electric wire','SCADA','Transducer','Other'];
+const SC = {active:'#16a34a',inactive:'#64748b',destroyed:'#dc2626',draft:'#d97706'};
+const SB = {active:'#dcfce7',inactive:'#f1f5f9',destroyed:'#fee2e2',draft:'#fef3c7'};
+const ST = {active:'#15803d',inactive:'#475569',destroyed:'#991b1b',draft:'#92400e'};
+
+async function boot() {
+  try { currentUser = await GET('/auth/me'); }
+  catch {
+    document.getElementById('login-overlay').style.display='flex';
+    document.getElementById('main-app').style.display='none';
+    return;
+  }
+  document.getElementById('login-overlay').style.display='none';
+  document.getElementById('main-app').style.display='block';
+  document.getElementById('nav-username').textContent=currentUser.name+' · '+currentUser.role;
+  await loadWells(); renderSidebar(); populateHistFilters();
+}
+
+async function doLogin() {
+  const u=document.getElementById('login-user').value;
+  if(!u){alert('Please select a user.');return;}
+  try {
+    await POST('/auth/mock-login-json',{username:u});
+    currentUser=await GET('/auth/me');
+    document.getElementById('login-overlay').style.display='none';
+    document.getElementById('main-app').style.display='block';
+    document.getElementById('nav-username').textContent=currentUser.name+' · '+currentUser.role;
+    await loadWells(); renderSidebar(); populateHistFilters();
+  } catch(e){alert('Login failed: '+e.message);}
+}
+
+async function doLogout() {
+  await POST('/auth/logout');
+  currentUser=null; activeId=null;
+  document.getElementById('login-overlay').style.display='flex';
+  document.getElementById('main-app').style.display='none';
+}
+
+async function loadWells() {
+  try { WELLS=await GET('/api/wells')||[]; } catch(e){console.error(e);}
+}
+
+function switchTab(tab) {
+  currentTab=tab;
+  ['data','ref','hist','refhist'].forEach(t=>{
+    document.getElementById('tab-'+t).className='nav-tab'+(t===tab?' active':'');
+  });
+  document.getElementById('data-page').className   ='page'     +(tab==='data'   ?'':' hidden');
+  document.getElementById('ref-page').className    ='ref-page' +(tab==='ref'    ?' visible':'');
+  document.getElementById('hist-page').className   ='hist-page'+(tab==='hist'   ?' visible':'');
+  document.getElementById('refhist-page').className='hist-page'+(tab==='refhist'?' visible':'');
+  if(tab==='ref')     renderRefPage();
+  if(tab==='hist')    renderHistory();
+  if(tab==='refhist') renderRefHistory();
+}
+
+function filterWells() {
+  const q=document.getElementById('wsearch').value.toLowerCase();
+  const f=WELLS.filter(w=>w.name.toLowerCase().includes(q)||(w.location||'').toLowerCase().includes(q));
+  document.getElementById('wcount').textContent=f.length;
+  renderSidebar(f);
+}
+
+function renderSidebar(list) {
+  list=list||WELLS;
+  document.getElementById('well-list').innerHTML=list.map(w=>`
+    <button class="well-btn${w.id===activeId?' active':''}" onclick="selectWell(${w.id})">
+      <span class="wname">${w.name}</span>
+      <span class="wmeta"><span class="dot" style="background:${SC[w.status]}"></span>${w.location||w.status}</span>
+    </button>`).join('');
+}
+
+async function selectWell(id) {
+  activeId=id; previewValue=null;
+  const w=WELLS.find(x=>x.id===id);
+  document.getElementById('well-big-title').textContent=w.name;
+  document.getElementById('well-loc-sub').textContent=(w.location||'')+' · '+w.status+' · GSE '+(w.ground_surface_elevation||'—')+' ft';
+  const badge=document.getElementById('wbadge');
+  badge.style.display=''; badge.textContent=w.status;
+  badge.style.background=SB[w.status]; badge.style.color=ST[w.status];
+  renderForm(w); renderSidebar();
+  if(currentTab==='ref') renderRefPage();
+  await loadMeasurements(id); renderCharts();
+}
+
+async function loadMeasurements(wellId) {
+  try { MEASUREMENTS[wellId]=await GET(`/api/measurements?well_id=${wellId}`)||[]; }
+  catch(e){ MEASUREMENTS[wellId]=[]; console.error(e); }
+}
+
+function renderForm(w) {
+  const meas=MEASUREMENTS[w.id]||[];
+  const last=[...meas].filter(m=>m.status==='committed').sort((a,b)=>a.measurement_date.localeCompare(b.measurement_date)).pop();
+  const rm=last?.measurement_method||'';
+  document.getElementById('form-inner').innerHTML=`
+    <div><label>Operator</label><input id="f-op" value="${currentUser.name}" readonly></div>
+    <div class="date-time-row">
+      <div><label>Date</label><input type="date" id="f-date" onchange="updatePreview()"></div>
+      <div><label>Time</label><input type="time" id="f-time"></div>
+    </div>
+    <div>
+      <label>Method</label>
+      <select id="f-method" onchange="checkMethod();updatePreview()">
+        <option value="">— select —</option>
+        ${METHODS.map(m=>`<option>${m}</option>`).join('')}
+      </select>
+      <span class="hint-txt" id="method-hint">Recent: ${rm||'none'}</span>
+      <div class="warn-box" id="method-warn" style="display:none">
+        <div>⚠ Method differs from recent history (last: ${rm}).</div>
+        <label class="ack-row"><input type="checkbox" id="method-ack" onchange="updateSubmitState()">I acknowledge the method change is intentional</label>
+      </div>
+    </div>
+    <div><label>Water level (ft bgs)</label><input type="number" id="f-val" step="0.01" placeholder="e.g. 142.30" oninput="updatePreview()"></div>
+    <div><label>Activity</label><select id="f-act" onchange="updatePreview()"><option>Static</option><option>Pumping</option><option>Injecting</option></select></div>
+    <div id="flag-warn-container"></div>
+    <div><label>Comments</label><textarea id="f-comment" placeholder="Optional notes..."></textarea></div>
+    <div class="err-box" id="f-err" style="display:none"></div>
+    <button class="sub-btn" id="sub-btn" onclick="submitForm()">Submit measurement</button>`;
+}
+
+function checkMethod() {
+  const w=WELLS.find(x=>x.id===activeId); if(!w) return;
+  const meas=MEASUREMENTS[w.id]||[];
+  const last=[...meas].filter(m=>m.status==='committed').sort((a,b)=>a.measurement_date.localeCompare(b.measurement_date)).pop();
+  const lm=last?.measurement_method||'';
+  const sel=document.getElementById('f-method').value;
+  document.getElementById('method-warn').style.display=(sel&&lm&&sel!==lm)?'':'none';
+  updateSubmitState();
+}
+
+function updateSubmitState() {
+  const btn=document.getElementById('sub-btn'); if(!btn) return;
+  const mw=document.getElementById('method-warn')?.style.display!=='none';
+  const ma=document.getElementById('method-ack')?.checked;
+  const fw=!!document.getElementById('flag-ack');
+  const fa=document.getElementById('flag-ack')?.checked;
+  btn.disabled=(mw&&!ma)||(fw&&!fa);
+}
+
+function calcStats(vals) {
+  const n=vals.length, mean=vals.reduce((a,b)=>a+b,0)/n;
+  const std=Math.sqrt(vals.reduce((a,b)=>a+(b-mean)**2,0)/n);
+  return{mean,std,upper:mean+2*std,lower:mean-2*std};
+}
+
+function evalFlags(well,value,activity) {
+  if(activity!=='Static'||!value) return[];
+  const meas=MEASUREMENTS[well.id]||[];
+  const sv=meas.filter(m=>m.activity==='Static'&&m.water_level&&m.status==='committed').map(m=>m.water_level);
+  if(sv.length<3) return[];
+  const flags=[], st=calcStats(sv);
+  if(well.flag_use_sigma){
+    const u=st.mean+well.flag_sigma*st.std, l=st.mean-well.flag_sigma*st.std;
+    if(value>u||value<l) flags.push(`Outside ±${well.flag_sigma}σ range (${l.toFixed(1)}–${u.toFixed(1)} ft)`);
+  }
+  if(well.flag_use_trend&&sv.length>=4){
+    const n=sv.length,xs=[...Array(n).keys()],mx=xs.reduce((a,b)=>a+b,0)/n,my=st.mean;
+    const num=xs.reduce((s,x,i)=>s+(x-mx)*(sv[i]-my),0),den=xs.reduce((s,x)=>s+(x-mx)**2,0);
+    const proj=(den?num/den:0)*n+(my-(den?num/den:0)*mx);
+    if(Math.abs(value-proj)>well.flag_trend_dev) flags.push(`Deviates >${well.flag_trend_dev} ft from trend (${proj.toFixed(1)} ft)`);
+  }
+  return flags;
+}
+
+function updatePreview() {
+  const ve=document.getElementById('f-val'), ae=document.getElementById('f-act');
+  previewValue=ve&&ve.value!==''?parseFloat(ve.value):null;
+  previewActivity=ae?ae.value:'Static';
+  const w=WELLS.find(x=>x.id===activeId), cont=document.getElementById('flag-warn-container');
+  if(cont&&w&&previewValue!==null&&!isNaN(previewValue)){
+    const flags=evalFlags(w,previewValue,previewActivity);
+    if(flags.length){
+      cont.innerHTML=`<div class="flag-box"><div style="font-weight:700;margin-bottom:4px">⚑ Value flagged:</div>${flags.map(f=>'<div>• '+f+'</div>').join('')}<label class="ack-row" style="margin-top:8px;background:rgba(0,0,0,0.06);padding:6px 8px;border-radius:5px"><input type="checkbox" id="flag-ack" onchange="updateSubmitState()">I acknowledge this deviation and confirm the value is correct</label></div>`;
+    } else cont.innerHTML='';
+    updateSubmitState();
+  } else if(cont) cont.innerHTML='';
+  renderCharts();
+}
+
+function destroyCharts(){Object.values(charts).forEach(c=>{try{c.destroy()}catch(e){}});charts={};}
+function getYears(){return parseInt(document.getElementById('yr-select')?.value||2);}
+function fmtDate(d){if(!d)return'—';const[y,m]=d.slice(0,7).split('-');return['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(m)-1]+' '+y;}
+
+function renderCharts(){
+  destroyCharts(); if(!activeId)return;
+  const w=WELLS.find(x=>x.id===activeId), yrs=getYears();
+  const allM=MEASUREMENTS[activeId]||[];
+  const cutoff=new Date(); cutoff.setFullYear(cutoff.getFullYear()-yrs);
+  const cutStr=cutoff.toISOString().slice(0,7);
+  const d=(yrs===999?allM:allM.filter(m=>m.measurement_date.slice(0,7)>=cutStr)).filter(m=>m.status==='committed');
+  if(!d.length){document.getElementById('charts-area').innerHTML='<div class="placeholder">No committed data in selected time range.</div>';return;}
+
+  const byMonth={};
+  d.forEach(m=>{const ym=m.measurement_date.slice(0,7);if(!byMonth[ym])byMonth[ym]={s:null,p:null,meth:m.measurement_method,t:m.measurement_time,wr:null};
+    if(m.activity==='Static'){byMonth[ym].s=m.water_level;if(m.wr_correction)byMonth[ym].wr=m.wr_correction;}
+    if(m.activity==='Pumping')byMonth[ym].p=m.water_level;
+  });
+  const labels=Object.keys(byMonth).sort();
+  const sVals=labels.map(l=>byMonth[l].s), pVals=labels.map(l=>byMonth[l].p);
+  const statics=sVals.filter(v=>v!==null);
+  const st=statics.length>=2?calcStats(statics):{mean:0,std:0,upper:0,lower:0};
+  const hasPump=pVals.some(v=>v!==null);
+  const mc={};d.forEach(m=>{mc[m.measurement_method]=(mc[m.measurement_method]||0)+1;});
+  const wrSV=labels.map(l=>{const wr=byMonth[l].wr;return wr&&wr.activity==='Static'?(wr.water_level??byMonth[l].s):null;});
+  const wrPV=labels.map(l=>{const wr=byMonth[l].wr;return wr&&wr.activity==='Pumping'?(wr.water_level??byMonth[l].p):null;});
+  const hasWR=wrSV.some(v=>v!==null)||wrPV.some(v=>v!==null);
+  const lastS=allM.filter(m=>m.activity==='Static'&&m.water_level&&m.status==='committed').sort((a,b)=>a.measurement_date.localeCompare(b.measurement_date)).pop();
+  const lastD=allM.filter(m=>m.status==='committed').sort((a,b)=>a.measurement_date.localeCompare(b.measurement_date)).pop();
+  const wrCount=d.filter(m=>m.wr_correction).length;
+
+  let pvL=[...labels],pvS=[...sVals],pvP=[...pVals],pvWrS=[...wrSV],pvWrP=[...wrPV],pi=-1;
+  if(previewValue!==null&&!isNaN(previewValue)){
+    const df=document.getElementById('f-date');
+    pvL.push(df?.value?df.value.slice(0,7):'preview');
+    pvWrS.push(null);pvWrP.push(null);
+    if(previewActivity==='Static'){pvS.push(previewValue);pvP.push(null);}
+    else if(previewActivity==='Pumping'){pvS.push(null);pvP.push(previewValue);}
+    else{pvS.push(null);pvP.push(null);}
+    pi=pvL.length-1;
+  }
+
+  const sBg=pvS.map((_,i)=>i===pi?'#f97316':'#2563eb');
+  const sRa=pvS.map((_,i)=>i===pi?8:5), sSt=pvS.map((_,i)=>i===pi?'rectRot':'circle');
+  const pBg=pvP.map((_,i)=>i===pi?'#f97316':'#dc2626');
+  const pRa=pvP.map((_,i)=>i===pi?8:5), pSt=pvP.map((_,i)=>i===pi?'rectRot':'circle');
+
+  document.getElementById('charts-area').innerHTML=`
+    <div class="metrics">
+      <div class="mc"><div class="mc-label">Last static level</div><div class="mc-val">${lastS?.water_level?.toFixed(1)??'—'} ft</div><div class="mc-date">${fmtDate(lastS?.measurement_date)}${lastS?.measurement_time?' · '+lastS.measurement_time:''}</div><div class="mc-sub">below ground surface</div></div>
+      <div class="mc"><div class="mc-label">Mean static</div><div class="mc-val">${st.mean.toFixed(1)} ft</div><div class="mc-sub">±${st.std.toFixed(1)} ft (1σ)</div></div>
+      <div class="mc"><div class="mc-label">Normal range (±2σ)</div><div class="mc-val" style="font-size:14px;padding-top:3px">${st.lower.toFixed(1)} – ${st.upper.toFixed(1)}</div><div class="mc-sub">ft bgs</div></div>
+      <div class="mc"><div class="mc-label">Last recorded</div><div class="mc-val" style="font-size:14px;padding-top:3px">${fmtDate(lastD?.measurement_date)}</div><div class="mc-sub">${lastD?.measurement_method||'—'}${lastD?.measurement_time?' · '+lastD.measurement_time:''}</div></div>
+      <div class="mc"><div class="mc-label">Time window</div>
+        <select class="yr-select" id="yr-select" onchange="renderCharts()">
+          <option value="1">Last 1 year</option>
+          <option value="2" ${yrs===2?'selected':''}>Last 2 years</option>
+          <option value="3" ${yrs===3?'selected':''}>Last 3 years</option>
+          <option value="5" ${yrs===5?'selected':''}>Last 5 years</option>
+          <option value="999" ${yrs===999?'selected':''}>All data</option>
+        </select>
+        <div class="mc-sub" style="margin-top:5px">${d.length} pts · ${wrCount} WR correction${wrCount!==1?'s':''}</div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="cleg">
+        <span class="ct">Water level history — inverted axis, ±2σ normal range shaded</span>
+        <span class="li"><span class="lsq" style="background:#2563eb"></span>Field Static</span>
+        ${hasPump||previewActivity==='Pumping'?'<span class="li"><span class="lsq" style="background:#dc2626"></span>Field Pumping</span>':''}
+        ${hasWR?'<span class="li"><span class="lsq" style="background:#7c3aed"></span>WR Static</span><span class="li"><span class="lsq" style="background:#b45309"></span>WR Pumping</span>':''}
+        <span class="li"><span class="lsq" style="background:rgba(134,239,172,0.7)"></span>Normal range (±2σ)</span>
+        ${previewValue!==null&&!isNaN(previewValue)?'<span class="preview-marker-legend">◆ Live preview</span>':''}
+      </div>
+      <div style="position:relative;height:300px"><canvas id="tsChart"></canvas></div>
+    </div>
+    <div style="max-width:400px">
+      <div class="chart-card"><div class="ct" style="margin-bottom:8px">Measurement method breakdown</div>
+        <div style="position:relative;height:170px"><canvas id="pieChart"></canvas></div>
+      </div>
+    </div>`;
+
+  charts.ts=new Chart(document.getElementById('tsChart'),{type:'line',data:{labels:pvL,datasets:[
+    {label:'Upper',data:pvL.map(()=>st.upper),borderColor:'transparent',backgroundColor:'rgba(134,239,172,0.2)',fill:'+1',pointRadius:0,tension:0},
+    {label:'Lower',data:pvL.map(()=>st.lower),borderColor:'transparent',fill:false,pointRadius:0,tension:0},
+    {label:'Field Static',data:pvS,borderColor:'#2563eb',fill:false,tension:0.3,pointRadius:sRa,pointBackgroundColor:sBg,pointStyle:sSt,borderWidth:2,spanGaps:true},
+    ...(hasPump||previewActivity==='Pumping'?[{label:'Field Pumping',data:pvP,borderColor:'#dc2626',fill:false,tension:0.3,pointRadius:pRa,pointBackgroundColor:pBg,pointStyle:pSt,borderWidth:2,borderDash:[5,3],spanGaps:true}]:[]),
+    ...(hasWR?[
+      {label:'WR Static',data:pvWrS,borderColor:'#7c3aed',fill:false,tension:0.3,pointRadius:7,pointBackgroundColor:'#7c3aed',pointStyle:'triangle',borderWidth:2,borderDash:[3,2],spanGaps:false},
+      {label:'WR Pumping',data:pvWrP,borderColor:'#b45309',fill:false,tension:0.3,pointRadius:7,pointBackgroundColor:'#b45309',pointStyle:'triangle',borderWidth:2,borderDash:[3,2],spanGaps:false}
+    ]:[])
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+    y:{reverse:true,title:{display:true,text:'ft below ground surface',font:{size:11}},grid:{color:'rgba(0,0,0,0.05)'}},
+    x:{ticks:{autoSkip:false,maxRotation:45,font:{size:10}},grid:{display:false}}
+  }}});
+
+  charts.pie=new Chart(document.getElementById('pieChart'),{type:'doughnut',data:{labels:Object.keys(mc),datasets:[{data:Object.values(mc),backgroundColor:['#2563eb','#dc2626','#16a34a','#d97706','#64748b'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:11},boxWidth:11,padding:8}}}}});
+}
+
+async function submitForm(){
+  const dt=document.getElementById('f-date').value, tm=document.getElementById('f-time').value;
+  const method=document.getElementById('f-method').value, val=document.getElementById('f-val').value;
+  const act=document.getElementById('f-act').value, cmt=document.getElementById('f-comment').value.trim();
+  const errEl=document.getElementById('f-err');
+  if(!dt||!tm||!method||val===''){errEl.textContent='Please fill in date, time, method, and water level.';errEl.style.display='';return;}
+  const mw=document.getElementById('method-warn')?.style.display!=='none';
+  if(mw&&!document.getElementById('method-ack')?.checked){errEl.textContent='Please acknowledge the method change warning.';errEl.style.display='';return;}
+  const fae=document.getElementById('flag-ack');
+  if(fae&&!fae.checked){errEl.textContent='Please acknowledge the flagged deviation.';errEl.style.display='';return;}
+  errEl.style.display='none';
+  try{
+    const btn=document.getElementById('sub-btn'); btn.disabled=true; btn.textContent='Submitting...';
+    const result=await POST('/api/measurements',{well_id:activeId,measurement_date:dt,measurement_time:tm,water_level:parseFloat(val),activity:act,measurement_method:method,comments:cmt,method_ack:mw&&!!document.getElementById('method-ack')?.checked,flag_ack:!!(fae?.checked)});
+    await loadMeasurements(activeId); previewValue=null; renderCharts();
+    const flags=result.flags?JSON.parse(result.flags):[];
+    document.getElementById('form-inner').innerHTML=`
+      <div class="form-topbar-label" style="margin-bottom:4px;color:#15803d">Submission received</div>
+      <div class="submitted-box ${flags.length?'flagged':''}">
+        ${flags.length?'<div style="font-weight:700;color:#9a3412">⚑ Submission flagged</div>':''}
+        <div class="srow"><span class="slabel">Date / time</span><span class="sval">${dt} ${tm}</span></div>
+        <div class="srow"><span class="slabel">Method</span><span class="sval">${method}</span></div>
+        <div class="srow"><span class="slabel">Value</span><span class="sval">${parseFloat(val).toFixed(2)} ft bgs</span></div>
+        <div class="srow"><span class="slabel">Activity</span><span class="sval">${act}</span></div>
+        ${cmt?`<div class="srow"><span class="slabel">Notes</span><span class="sval">${cmt}</span></div>`:''}
+        ${flags.length?'<div style="font-size:11px;color:#9a3412;margin-top:4px">'+flags.map(f=>'• '+f).join('<br>')+'</div>':''}
+      </div>
+      <div class="pending-banner"><strong>Pending — auto-commits in 24 hours.</strong><br>Check <a href="#" onclick="switchTab('hist');return false;" style="color:#2563eb;font-weight:600">Measurement History</a> to cancel.</div>
+      <button class="sub-btn" onclick="selectWell(${activeId})">+ Enter another measurement</button>`;
+  }catch(e){
+    const btn=document.getElementById('sub-btn'); btn.disabled=false; btn.textContent='Submit measurement';
+    document.getElementById('f-err').textContent=e.message; document.getElementById('f-err').style.display='';
+  }
+}
+
+async function renderRefPage(){
+  const w=WELLS.find(x=>x.id===activeId);
+  if(!w){document.getElementById('ref-title').textContent='Reference Information';document.getElementById('ref-sub').textContent='Select a well from the sidebar.';document.getElementById('ref-body').innerHTML='';return;}
+  document.getElementById('ref-title').textContent='Reference Information — '+w.name;
+  document.getElementById('ref-sub').textContent=(w.location||'')+' · '+w.status;
+  let offsets=[];
+  try{offsets=await GET(`/api/reference/${w.id}`)||[];}catch{}
+  const latest=offsets[0]||{};
+  document.getElementById('ref-body').innerHTML=`
+    <div class="ref-card">
+      <h3>Update reference data</h3>
+      <div class="ref-grid">
+        <div class="ref-field"><label>Method</label><select id="r-method">${METHODS.map(m=>`<option ${m===latest.method?'selected':''}>${m}</option>`).join('')}</select></div>
+        <div class="ref-field"><label>Air line setting (ft)</label><input type="number" id="r-airline" step="0.1" value="${latest.air_line_setting??''}"></div>
+        <div class="ref-field"><label>Pump depth (ft)</label><input type="number" id="r-pump" step="0.1" value="${latest.pump_depth??''}"></div>
+        <div class="ref-field"><label>Reference offset distance (ft)</label><input type="number" id="r-offset" step="0.01" value="${latest.ground_to_offset??''}"></div>
+        <div class="ref-field"><label>Effective date of change</label><input type="date" id="r-date"></div>
+      </div>
+      <div class="ref-submit">
+        <button class="ref-sub-btn" onclick="submitRef(${w.id})">Save reference data</button>
+        <div class="ref-success" id="ref-success" style="display:none">Saved successfully.</div>
+        <div class="ref-err" id="ref-err" style="display:none">Please fill in all required fields.</div>
+      </div>
+    </div>
+    <div class="ref-history">
+      <h3>Change history</h3>
+      <div class="ref-row header" style="grid-template-columns:130px 110px 110px 110px 110px">
+        <span>Date</span><span>Method</span><span>Air line</span><span>Pump depth</span><span>Ref offset</span>
+      </div>
+      ${offsets.map(o=>`<div class="ref-row" style="grid-template-columns:130px 110px 110px 110px 110px">
+        <span>${o.date}</span><span>${o.method||'—'}</span>
+        <span>${o.air_line_setting?.toFixed(1)??'—'} ft</span>
+        <span>${o.pump_depth?.toFixed(1)??'—'} ft</span>
+        <span>${o.ground_to_offset?.toFixed(2)??'—'} ft</span>
+      </div>`).join('')}
+    </div>`;
+}
+
+async function submitRef(wellId){
+  const airline=document.getElementById('r-airline').value, pump=document.getElementById('r-pump').value;
+  const offset=document.getElementById('r-offset').value, dt=document.getElementById('r-date').value;
+  const method=document.getElementById('r-method').value;
+  const errEl=document.getElementById('ref-err'),okEl=document.getElementById('ref-success');
+  if(!airline||!pump||!offset||!dt||!method){errEl.style.display='block';okEl.style.display='none';return;}
+  errEl.style.display='none';
+  try{
+    await POST(`/api/reference/${wellId}`,{date:dt,ground_to_offset:parseFloat(offset),air_line_setting:parseFloat(airline),pump_depth:parseFloat(pump),method,status:'active'});
+    okEl.style.display='block'; setTimeout(()=>renderRefPage(),800);
+  }catch(e){errEl.textContent=e.message;errEl.style.display='block';}
+}
+
+function populateHistFilters(){
+  const opts='<option value="">All wells</option>'+WELLS.map(w=>`<option value="${w.id}">${w.name} — ${w.location||''}</option>`).join('');
+  document.getElementById('hist-filter-well').innerHTML=opts;
+  document.getElementById('refhist-filter-well').innerHTML=opts;
+}
+
+function statusPill(s,flags,hasWR){
+  if(s==='pending') return'<span class="pill pill-pending">pending</span>';
+  let p='';
+  if(flags&&flags.length) p+='<span class="pill pill-flag">flagged</span> ';
+  if(hasWR) p+='<span class="pill pill-wr">WR corrected</span>';
+  if(!p) p='<span class="pill pill-ok">committed</span>';
+  return p;
+}
+
+async function renderHistory(){
+  const wf=document.getElementById('hist-filter-well').value, sf=document.getElementById('hist-filter-status').value;
+  let url='/api/measurements?';
+  if(wf) url+=`well_id=${wf}&`;
+  if(sf==='pending') url+='status=pending&';
+  else if(sf==='committed') url+='status=committed&';
+  let rows=[];
+  try{rows=await GET(url)||[];}catch{}
+  if(sf==='flagged') rows=rows.filter(r=>r.flags&&JSON.parse(r.flags||'[]').length>0);
+  rows.sort((a,b)=>b.submitted_at.localeCompare(a.submitted_at));
+  const html=`
+    <div class="hist-row header"><span>Date</span><span>Time</span><span>Well</span><span>Operator</span><span>Activity</span><span>Value</span><span>Method</span><span>Status</span></div>
+    ${rows.length===0?'<div style="padding:24px;text-align:center;color:#94a3b8;font-size:13px">No submissions match the filters.</div>':rows.map(r=>{
+      const w=WELLS.find(x=>x.id===r.well_id)||{name:'?'};
+      const flags=JSON.parse(r.flags||'[]'),hasWR=!!r.wr_correction;
+      const cls='hist-row '+(r.status==='pending'?'pending':(hasWR?'wr-corrected':(flags.length?'flagged':'')));
+      const wrC=r.wr_correction;
+      return`<div class="${cls}" onclick="openSubmissionModal(${r.id})">
+        <span>${r.measurement_date}</span><span>${r.measurement_time||'—'}</span>
+        <span><strong>${w.name}</strong></span><span>${r.operator_name||'—'}</span>
+        <span>${r.activity}${hasWR&&wrC.activity&&wrC.activity!==r.activity?' <span class="diff-hl">WR: '+wrC.activity+'</span>':''}</span>
+        <span>${r.water_level?.toFixed(2)||'—'} ft${hasWR&&wrC.water_level&&wrC.water_level!==r.water_level?' <span class="diff-hl">WR: '+wrC.water_level.toFixed(2)+'</span>':''}</span>
+        <span>${r.measurement_method}${hasWR&&wrC.measurement_method&&wrC.measurement_method!==r.measurement_method?' <span class="diff-hl">WR: '+wrC.measurement_method+'</span>':''}</span>
+        <span>${statusPill(r.status,flags,hasWR)}</span>
+      </div>`;
+    }).join('')}`;
+  document.getElementById('hist-table').innerHTML=html;
+}
+
+async function renderRefHistory(){
+  const wf=document.getElementById('refhist-filter-well').value;
+  const wells=wf?WELLS.filter(w=>w.id==parseInt(wf)):WELLS;
+  let rows=[];
+  for(const w of wells){
+    try{const offs=await GET(`/api/reference/${w.id}`)||[];offs.forEach(o=>rows.push({...o,wellName:w.name,wellLoc:w.location||''}));}catch{}
+  }
+  rows.sort((a,b)=>b.date.localeCompare(a.date));
+  const html=`
+    <div class="hist-row header" style="grid-template-columns:120px 120px 100px 100px 100px 110px">
+      <span>Date</span><span>Well</span><span>Air line</span><span>Pump depth</span><span>Ref offset</span><span>Method</span>
+    </div>
+    ${rows.map(r=>`<div class="hist-row" style="grid-template-columns:120px 120px 100px 100px 100px 110px">
+      <span>${r.date}</span><span><strong>${r.wellName}</strong></span>
+      <span>${r.air_line_setting?.toFixed(1)??'—'} ft</span>
+      <span>${r.pump_depth?.toFixed(1)??'—'} ft</span>
+      <span>${r.ground_to_offset?.toFixed(2)??'—'} ft</span>
+      <span>${r.method||'—'}</span>
+    </div>`).join('')}`;
+  document.getElementById('refhist-table').innerHTML=html;
+}
+
+async function openSubmissionModal(id){
+  let r; try{r=await GET(`/api/measurements/${id}`);}catch{return;}
+  const w=WELLS.find(x=>x.id===r.well_id)||{name:'?',location:''};
+  const wr=r.wr_correction, flags=JSON.parse(r.flags||'[]');
+  const isAdmin=currentUser?.role==='admin';
+  document.getElementById('modal-title').textContent='Measurement — '+w.name;
+  document.getElementById('modal-sub').textContent=r.status==='pending'?'PENDING':(wr?'COMMITTED · WR Correction on file':'COMMITTED');
+  function diff(orig,wrVal,fmt){const o=fmt?fmt(orig):orig;if(!wr||wrVal==null||wrVal===orig)return`<span class="v">${o}</span>`;return`<span class="v">${o} <span class="diff-hl">WR: ${fmt?fmt(wrVal):wrVal}</span></span>`;}
+  let wrSec='';
+  if(wr)wrSec=`<div class="modal-section-title wr">▼ Water Resources Correction</div>
+    <div class="modal-row"><span class="l" style="color:#5b21b6">Activity</span><span class="v" style="color:#5b21b6;font-weight:700">${wr.activity||r.activity}</span></div>
+    <div class="modal-row"><span class="l" style="color:#5b21b6">Water level</span><span class="v" style="color:#5b21b6;font-weight:700">${wr.water_level?.toFixed(2)??r.water_level?.toFixed(2)} ft bgs</span></div>
+    <div class="modal-row"><span class="l" style="color:#5b21b6">Method</span><span class="v" style="color:#5b21b6">${wr.measurement_method||r.measurement_method}</span></div>
+    <div class="modal-row"><span class="l" style="color:#5b21b6">Reason</span><span class="v" style="color:#5b21b6">${wr.reason||'—'}</span></div>
+    <div class="modal-row"><span class="l" style="color:#5b21b6">Corrected by</span><span class="v" style="color:#5b21b6">${wr.corrector_name||'—'} · ${new Date(wr.corrected_at).toLocaleString()}</span></div>`;
+  let wrForm='';
+  if(isAdmin&&r.status==='committed')wrForm=`
+    <div class="modal-section-title wr" style="margin-top:16px">${wr?'✏ Edit WR Correction':'＋ Add WR Correction (Admin)'}</div>
+    <div class="wr-correction-form">
+      <div><label>Activity</label><select id="wr-act">${['Static','Pumping','Injecting'].map(a=>`<option ${(wr?.activity||r.activity)===a?'selected':''}>${a}</option>`).join('')}</select></div>
+      <div><label>Water level (ft bgs)</label><input type="number" id="wr-val" step="0.01" value="${wr?.water_level??r.water_level}"></div>
+      <div><label>Method</label><select id="wr-method">${METHODS.map(m=>`<option ${(wr?.measurement_method||r.measurement_method)===m?'selected':''}>${m}</option>`).join('')}</select></div>
+      <div><label>Comments</label><textarea id="wr-comments">${wr?.comments||''}</textarea></div>
+      <div><label>Reason for correction</label><input id="wr-reason" placeholder="e.g. Pump confirmed running per SCADA" value="${wr?.reason||''}"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="wr-sub-btn" onclick="saveWRCorrection(${id})">Save WR Correction</button>
+        ${wr?`<button class="modal-btn danger" onclick="deleteWRCorrection(${id})">Remove correction</button>`:''}
+      </div>
+      <div id="wr-err" style="display:none;font-size:12px;color:#991b1b;background:#fee2e2;border-radius:5px;padding:6px 9px">Please fill in required fields.</div>
+    </div>`;
+  document.getElementById('modal-body').innerHTML=`
+    <div class="modal-section-title">▼ Field Staff Record</div>
+    <div class="modal-row"><span class="l">ID</span><span class="v">${r.id}</span></div>
+    <div class="modal-row"><span class="l">Well</span><span class="v">${w.name} — ${w.location||''}</span></div>
+    <div class="modal-row"><span class="l">Operator</span><span class="v">${r.operator_name||'—'}</span></div>
+    <div class="modal-row"><span class="l">Date & time</span><span class="v">${r.measurement_date} at ${r.measurement_time||'—'}</span></div>
+    <div class="modal-row"><span class="l">Activity</span>${diff(r.activity,wr?.activity)}</div>
+    <div class="modal-row"><span class="l">Water level</span>${diff(r.water_level,wr?.water_level,v=>v?.toFixed(2)+' ft bgs')}</div>
+    <div class="modal-row"><span class="l">Method</span>${diff(r.measurement_method,wr?.measurement_method)}</div>
+    <div class="modal-row"><span class="l">Submitted</span><span class="v">${new Date(r.submitted_at).toLocaleString()}</span></div>
+    <div class="modal-row"><span class="l">Status</span><span class="v">${statusPill(r.status,flags,!!wr)}</span></div>
+    ${flags.length?'<div class="modal-row"><span class="l">Flags</span><span class="v" style="color:#9a3412">'+flags.map(f=>'• '+f).join('<br>')+'</span></div>':''}
+    ${r.comments?'<div class="modal-row"><span class="l">Comments</span><span class="v">'+r.comments+'</span></div>':''}
+    ${wrSec}${wrForm}`;
+  const actions=[];
+  if(r.status==='pending')actions.push(`<button class="modal-btn danger" onclick="cancelMeasurement(${r.id})">Cancel submission</button>`);
+  actions.push(`<button class="modal-btn secondary" onclick="closeModal()">Close</button>`);
+  document.getElementById('modal-actions').innerHTML=actions.join('');
+  document.getElementById('modal-bg').className='modal-bg visible';
+}
+
+async function cancelMeasurement(id){
+  if(!confirm('Cancel this submission?'))return;
+  try{await POST(`/api/measurements/${id}/cancel`);closeModal();if(activeId){await loadMeasurements(activeId);renderCharts();}renderHistory();}
+  catch(e){alert(e.message);}
+}
+
+async function saveWRCorrection(measId){
+  const act=document.getElementById('wr-act').value, val=document.getElementById('wr-val').value;
+  const method=document.getElementById('wr-method').value, cmt=document.getElementById('wr-comments').value.trim();
+  const reason=document.getElementById('wr-reason').value.trim(), errEl=document.getElementById('wr-err');
+  if(!reason){errEl.style.display='block';return;}errEl.style.display='none';
+  try{await POST(`/api/corrections/${measId}`,{activity:act,water_level:parseFloat(val),measurement_method:method,comments:cmt,reason});
+    if(activeId){await loadMeasurements(activeId);renderCharts();}openSubmissionModal(measId);}
+  catch(e){errEl.textContent=e.message;errEl.style.display='block';}
+}
+
+async function deleteWRCorrection(measId){
+  if(!confirm('Remove this WR correction?'))return;
+  try{await DEL(`/api/corrections/${measId}`);if(activeId){await loadMeasurements(activeId);renderCharts();}openSubmissionModal(measId);}
+  catch(e){alert(e.message);}
+}
+
+function openRefModal(){}
+function closeModal(e){if(e&&e.target&&!e.target.classList.contains('modal-bg'))return;document.getElementById('modal-bg').className='modal-bg';}
+
+function exportMeasurementsCSV(){
+  const wf=document.getElementById('hist-filter-well').value, sf=document.getElementById('hist-filter-status').value;
+  let url='/api/measurements/export-csv?';
+  if(wf)url+=`well_id=${wf}&`;
+  if(sf&&sf!=='flagged')url+=`status=${sf}&`;
+  window.location.href=url;
+}
+function exportRefHistoryCSV(){alert('Reference CSV export — coming soon.');}
+
+document.addEventListener('DOMContentLoaded', boot);
+
+</script>
+</body>
+</html>
