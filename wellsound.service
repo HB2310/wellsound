@@ -1,0 +1,21 @@
+[Unit]
+Description=WellSound Groundwater Monitoring App
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=wellsound
+WorkingDirectory=/opt/wellsound
+Environment="PATH=/opt/wellsound/venv/bin"
+EnvironmentFile=/opt/wellsound/.env
+ExecStart=/opt/wellsound/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 2
+Restart=on-failure
+RestartSec=5s
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=wellsound
+
+[Install]
+WantedBy=multi-user.target
